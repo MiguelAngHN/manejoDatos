@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Elemento;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ElementoController extends Controller
 {
@@ -71,5 +73,34 @@ class ElementoController extends Controller
     public function detalles($id) {
         $elemento = Elemento::with('estado')->findOrFail($id);
         return view('elementos.detalles', compact('elemento'));
+    }
+
+    public function viewpdf($id)
+    {
+        $ingresoSalida = DB::table('ingreso_salida_equipos')->where('id', $id)->first();
+
+        $elementos = [];
+        $idElementos = ['idElemento', 'idElemento2', 'idElemento3'];
+        foreach ($idElementos as $column) {
+            $elementoId = $ingresoSalida->{$column};
+            if ($elementoId) {
+                $elemento = DB::table('elementos')
+                            ->select(
+                                'elementos.*',
+                                'estado_elementos.estado as estado_elemento'
+                            )
+                            ->leftJoin('estado_elementos', 'elementos.estado_id', '=', 'estado_elementos.id')
+                            ->where('elementos.id', $elementoId)
+                            ->first();
+
+                if ($elemento) {
+                    $elementos[] = $elemento;
+                }
+            }
+        }
+
+
+        $pdf = Pdf::loadView('pdf.pdf', compact('ingresoSalida', 'elementos'));
+        return $pdf->stream('pdf.pdf');
     }
 }
